@@ -1,4 +1,4 @@
-function [delta_theta, delta_bias, P] = EKF_attitude(q0, P_prev, omega, sun_mes_hat, mag_mes_hat, sun_eci_hat, mag_eci_hat, sigma_u, sigma_v)
+function [delta_theta, delta_bias, P] = EKF_attitude_quest(q0, P_prev, omega, sun_mes_hat, mag_mes_hat, sun_eci_hat, mag_eci_hat, sigma_u, sigma_v)
     dt = 1;
     A = eye(6) + cat(1, cat(2,-skew(omega), -eye(3)), zeros(3,6)) * dt + 1/2*[skew(omega)^2, skew(omega); zeros(3), zeros(3)] * dt^2;
     B = 0;
@@ -6,8 +6,8 @@ function [delta_theta, delta_bias, P] = EKF_attitude(q0, P_prev, omega, sun_mes_
          -(1/2 * sigma_u^2) * eye(3), sigma_u^2 * eye(3)];
     
     % q = cat(1, 1/2*x_previous(1:3), 1);
-    H = cat(1, cat(2, skew(q2dcm(q0)*sun_eci_hat), zeros(3,3)), cat(2, skew(q2dcm(q0)*mag_eci_hat), zeros(3,3)));%+ rand(6,6)*0.0001;
-    R = blkdiag(eye(3)*0.002^2, eye(3)*0.015^2);
+    H = [eye(3), zeros(3)];
+    R = eye(3)*0.02^2;
     
     % prediction
     % G = blkdiag(-eye(3), eye(3));
@@ -17,7 +17,14 @@ function [delta_theta, delta_bias, P] = EKF_attitude(q0, P_prev, omega, sun_mes_
     K = P*H.'* inv(H*P*H.'+ R);
     % K = (H*P*H.'+ R)/(P*H.');
     P = (eye(6)-K*H)*P;
-    e = (cat(1, sun_mes_hat, mag_mes_hat) - cat(1, q2dcm(q0)*sun_eci_hat, q2dcm(q0)*mag_eci_hat));
+
+    q_quest = quest([sun_eci_hat, mag_eci_hat], [sun_mes_hat, mag_mes_hat]);
+    delta_q_quest = quat_multipication(q_quest, qInverse(q0));
+%     [r, p, y] = dcm2angle(q2dcm(delta_q_quest));
+%     delta_euler_quest = [r; p; y];
+    delta_euler_quest = [2*delta_q_quest(1); 2*delta_q_quest(2); 2*delta_q_quest(3)]/delta_q_quest(4);
+
+    e = delta_euler_quest;
     delta_x = K*e;
     
     delta_theta = delta_x(1:3);

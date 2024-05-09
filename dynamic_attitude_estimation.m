@@ -22,7 +22,7 @@ initial_q = initial_q / norm(initial_q);                           % normalize q
 q = initial_q;
 
 % Normilze the measurement vectors
-for i =1:t_max
+for i = 1:t_max
     sun_eci_hat(:,i) = sun_eci(:,i)/norm(sun_eci(:,i));
     sun_mes_hat(:,i) = sun_mes(:,i)/norm(sun_mes(:,i));
     mag_eci_hat(:,i) = mag_eci(:,i)/norm(mag_eci(:,i));
@@ -33,12 +33,12 @@ end
 for i = 1:t_max
 
 	% Call the UKF filter
-	[delta_euler, delta_bias, P_k] = EKF_attitude(q, P, omega, sun_mes_hat(:,i), mag_mes_hat(:,i), sun_eci_hat(:,i), mag_eci_hat(:,i), sigma_u, sigma_v);
+	[delta_euler, delta_bias, P_k] = EKF_attitude_quest(q, P, omega, sun_mes_hat(:,i), mag_mes_hat(:,i), sun_eci_hat(:,i), mag_eci_hat(:,i), sigma_u, sigma_v);
 
 	% Update P matrix
 	P = P_k;
 
-    % Save covariance history
+    % Store covariance history
     covar_history(:,:,i) = P;
 
 	% Update quaternion using delta euler angles
@@ -52,6 +52,9 @@ for i = 1:t_max
 
 	% Update the bias
 	bias = bias + delta_bias;
+
+    % Store bias history
+    delta_bias_history(:,i) = bias - bias_real(:,i);
 
 	% Update the omegas obtained form gyro using biases
 	omega = [Wx(:,i); Wy(:,i); Wz(:,i)];
@@ -78,10 +81,78 @@ for i = 1:t_max
                                   -q(1), -q(2), -q(3)], q) * qInverse(q_real(:,i));
 end
 
-figure(10)
+figure(1)
+subplot(3,1,1)
 hold on
+grid on
 plot(2 * delta_q_history(1,:));
 plot(reshape(6 * sqrt(covar_history(1,1,:)), 1, t_max))
 plot(reshape(-6 * sqrt(covar_history(1,1,:)), 1, t_max))
+title("Roll Error")
+xlabel("t [s]")
+ylabel("roll error [rad]")
+legend("Error", "3\sigma", "-3\sigma")
+% ylim([-0.15, 0.15])
 
+subplot(3,1,2)
+hold on
+grid on
+plot(2 * delta_q_history(2,:));
+plot(reshape(6 * sqrt(covar_history(2,2,:)), 1, t_max))
+plot(reshape(-6 * sqrt(covar_history(2,2,:)), 1, t_max))
+title("Pitch Error")
+xlabel("t [s]")
+ylabel("pitch error [rad]")
+legend("Error", "3\sigma", "-3\sigma")
+% ylim([-0.15, 0.15])
 
+subplot(3,1,3)
+hold on
+grid on
+plot(2 * delta_q_history(3,:));
+plot(reshape(6 * sqrt(covar_history(3,3,:)), 1, t_max))
+plot(reshape(-6 * sqrt(covar_history(3,3,:)), 1, t_max))
+title("Yaw Error")
+xlabel("t [s]")
+ylabel("yaw error [rad]")
+legend("Error", "3\sigma", "-3\sigma")
+% ylim([-0.15, 0.15])
+exportgraphics(gcf,'attitude_error_quest.jpg', BackgroundColor='none',ContentType='image')
+
+figure(2)
+subplot(3,1,1)
+hold on
+grid on
+plot(delta_bias_history(1,:));
+plot(reshape(3 * sqrt(covar_history(4,4,:)), 1, t_max))
+plot(reshape(-3 * sqrt(covar_history(4,4,:)), 1, t_max))
+title("b_x Error")
+xlabel("t [s]")
+ylabel("b_x error [rad/s]")
+legend("Error", "3\sigma", "-3\sigma")
+ylim([-2E-4, 2E-4])
+
+subplot(3,1,2)
+hold on
+grid on
+plot(delta_bias_history(2,:));
+plot(reshape(3 * sqrt(covar_history(5,5,:)), 1, t_max))
+plot(reshape(-3 * sqrt(covar_history(5,5,:)), 1, t_max))
+title("b_y Error")
+xlabel("t [s]")
+ylabel("b_y error [rad/s]")
+legend("Error", "3\sigma", "-3\sigma")
+ylim([-2E-4, 2E-4])
+
+subplot(3,1,3)
+hold on
+grid on
+plot(delta_bias_history(3,:));
+plot(reshape(3 * sqrt(covar_history(6,6,:)), 1, t_max))
+plot(reshape(-3 * sqrt(covar_history(6,6,:)), 1, t_max))
+title("b_z Error")
+xlabel("t [s]")
+ylabel("b_z error [rad/s]")
+legend("Error", "3\sigma", "-3\sigma")
+ylim([-2E-4, 2E-4])
+exportgraphics(gcf,'bias_error_quest.jpg', BackgroundColor='none',ContentType='image')
